@@ -23,4 +23,4 @@ RUN chmod +x /app/start.sh
 EXPOSE 3000
 
 # Command to run the start script
-CMD ["node", "/app/start.sh"]
+CMD ["bash", "/app/start.sh"]

@@ -23,6 +23,7 @@ services:
       - appnetwork
     volumes:
       - ./server:/app
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
     depends_on:
       - mariadb
       - redis
