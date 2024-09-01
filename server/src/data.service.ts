@@ -1,38 +1,3 @@
-// import { Injectable } from '@nestjs/common';
-// import { DatabaseService } from './database-service.service';
-
-// @Injectable()
-// export class DataService {
-//   constructor(private readonly databaseService: DatabaseService) {}
-
-//   async getUsers() {
-//     return this.databaseService.query('SELECT * FROM users');
-//   }
-
-//   async getFiles() {
-//     return this.databaseService.query('SELECT * FROM files');
-//   }
-
-//   async getCustomers() {
-//     return this.databaseService.query('SELECT * FROM customers');
-//   }
-
-//   async getUserFiles(userId: number) {
-//     const sql = 'SELECT * FROM files WHERE u_id = ?';
-//     return this.databaseService.query(sql, [userId]);
-//   }
-
-//   async addFile(filename: string, filePath: string, userId: number) {
-//     const sql = 'INSERT INTO files (filename, file_path, u_id) VALUES (?, ?, ?)';
-//     return this.databaseService.query(sql, [filename, filePath, userId]);
-//   }
-
-//   async addCustomer(customerData: any, fileId: number) {
-//     const { c_name, c_email, c_israeli_id, c_phone } = customerData;
-//     const sql = 'INSERT INTO customers (c_name, c_email, c_israeli_id, c_phone, f_id) VALUES (?, ?, ?, ?, ?)';
-//     return this.databaseService.query(sql, [c_name, c_email, c_israeli_id, c_phone, fileId]);
-//   }
-// }
 
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from './database-service.service';
@@ -47,20 +12,60 @@ export class DataService {
     return this.databaseService.query('SELECT * FROM users');
   }
 
+  
   async getFiles() {
-    const files = await this.databaseService.query('SELECT * FROM files') as any[];
-    const validFiles = [];
-
-    for (const file of files) {
-      const filePath = path.join(__dirname, '..', 'uploads', file.f_path);
-      if (fs.existsSync(filePath)) {
-        validFiles.push(file);
-      } else {
-        await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [file.f_id]);
+    try {
+      const files = await this.databaseService.query('SELECT * FROM files') as any[];
+      console.log('Files from database:', files); // Log the files retrieved from the database
+  
+      const validFiles = [];
+  
+      for (const file of files) {
+        const filePath = path.join(__dirname, '..', file.f_path); // Adjusted to avoid duplicating 'uploads'
+        console.log('Checking file path:', filePath); // Log the file path being checked
+  
+        if (fs.existsSync(filePath)) {
+          console.log('File exists:', filePath); // Log if the file exists
+          validFiles.push(file);
+        } else {
+          console.log('File does not exist, deleting from database:', filePath); // Log if the file does not exist
+          await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [file.f_id]);
+        }
       }
+      if(validFiles.length === 0) {
+        await this.databaseService.query('ALTER TABLE files AUTO_INCREMENT = 1');
+      }
+      console.log('Valid files:', validFiles); // Log the valid files array
+      return validFiles;
+    } catch (error) {
+      console.error('Error in getFiles:', error); // Log any errors
+      throw error;
+    }
+  }
+
+
+  async deleteFile(fileId: number): Promise<void> {
+    // Get the file path from the database
+    const file = await this.databaseService.query('SELECT f_path FROM files WHERE f_id = ?', [fileId]) as any[];
+    if (file.length === 0) {
+      throw new Error(`File with ID ${fileId} not found`);
     }
 
-    return validFiles;
+    const filePath = path.join(__dirname, '..', file[0].f_path);
+
+    // Delete the file record from the database
+    await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [fileId]);
+
+    // Delete the file from the file system
+    return new Promise((resolve, reject) => {
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   async getCustomers() {
