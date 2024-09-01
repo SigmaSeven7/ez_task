@@ -51,6 +51,9 @@ import { FileController } from './controllers/file.controller';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { RedisService } from './services/redis.service';
+import { SemaphoreService } from './services/semaphore.service';
+import { RedisModule } from './redis.module';
 
 @Module({
   imports: [
@@ -62,9 +65,9 @@ import { extname } from 'path';
           callback(null, `${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
-    }),
+    }),RedisModule
   ],
   controllers: [AppController, FileController],
-  providers: [AppService, DataService, DatabaseService, FileService],
+  providers: [AppService, DataService, DatabaseService, FileService, RedisService, SemaphoreService],
 })
 export class AppModule {}

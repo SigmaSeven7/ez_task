@@ -36,6 +36,8 @@
 
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from './database-service.service';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class DataService {
@@ -46,7 +48,19 @@ export class DataService {
   }
 
   async getFiles() {
-    return this.databaseService.query('SELECT * FROM files');
+    const files = await this.databaseService.query('SELECT * FROM files') as any[];
+    const validFiles = [];
+
+    for (const file of files) {
+      const filePath = path.join(__dirname, '..', 'uploads', file.f_path);
+      if (fs.existsSync(filePath)) {
+        validFiles.push(file);
+      } else {
+        await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [file.f_id]);
+      }
+    }
+
+    return validFiles;
   }
 
   async getCustomers() {
