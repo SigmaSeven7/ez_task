@@ -1,7 +1,10 @@
-import { Controller, Post, UploadedFile, UploadedFiles, UseInterceptors, Param, Get, Body, Delete } from '@nestjs/common';
+import { Controller, Post, UploadedFile, UploadedFiles, UseInterceptors, Param, Get, Body, Delete, Res, StreamableFile } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { FileService } from '../services/file.service';
 import { Multer } from 'multer';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Response } from 'express';
 
 @Controller('files')
 export class FileController {
@@ -58,7 +61,30 @@ export class FileController {
   }
 
 
-  
+  @Get(':id/contents')
+  async getFileContents(@Param('id') id: string) {
+    return this.fileService.getFileContents(parseInt(id));
+  }
+
+
+  @Get(':id/download')
+  async downloadFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    const file = await this.fileService.getFile(parseInt(id));
+    const filePath = path.join(__dirname, '..', '..', file.f_path);
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error('File not found');
+    }
+
+    const fileStream = fs.createReadStream(filePath);
+
+    res.set({
+      'Content-Disposition': `attachment; filename="${file.f_name}"`,
+      'Content-Type': 'application/octet-stream',
+    });
+
+    return new StreamableFile(fileStream);
+  }
 
   @Get('user/:userId')
   async getFilesByUser(@Param('userId') userId: number) {

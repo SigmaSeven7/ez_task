@@ -11,20 +11,22 @@ export class FileService {
   private readonly MAX_CONCURRENT_UPLOADS = 5;
   constructor(private readonly dataService: DataService,  private readonly redisService: RedisService, private readonly semaphoreService: SemaphoreService) {}
 
-
-  // async uploadFile(file: Express.Multer.File, userId: number) {
-  //   try {
-  //     this.logger.log(`Uploading file: ${file.filename} by user ${userId}`);
-  //     await this.dataService.addFile(file.filename, file.path, userId);
-  //     return { status: 'uploaded', file: file.filename };
-  //   } catch (error) {
-  //     this.logger.error(`Error uploading file: ${file.filename}`, error.stack);
-  //     return { status: 'error', file: file.filename, error: error.message };
-  //   } finally {
-  //     await this.redisService.decrementProcessingCount();
-  //     this.processNextInQueue();
-  //   }
-  // }
+  
+  async getFileContents(fileId: number) {
+    this.logger.log(`Fetching contents for file ${fileId}`);
+    try {
+      const contents = await this.dataService.getFileContents(fileId);
+      return contents;
+    } catch (error) {
+      this.logger.error(`Error fetching file contents for file ${fileId}:`, error.stack);
+      throw error;
+    }
+  }
+  
+  async getFile(fileId: number) {
+    this.logger.log(`Fetching file info for file ${fileId}`);
+    return this.dataService.getFile(fileId);
+  }
 
   async uploadFile(file: Express.Multer.File, userId: number) {
     try {

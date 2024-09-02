@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { DatabaseService } from './database-service.service';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx'
 
 @Injectable()
 export class DataService {
@@ -39,6 +40,39 @@ export class DataService {
       return validFiles;
     } catch (error) {
       console.error('Error in getFiles:', error); // Log any errors
+      throw error;
+    }
+  }
+
+  async getFile(fileId: number) {
+    const file = await this.databaseService.query('SELECT * FROM files WHERE f_id = ?', [fileId]) as any[];
+    if (file.length === 0) {
+      throw new Error(`File with ID ${fileId} not found`);
+    }
+    return file[0];
+  }
+
+  async getFileContents(fileId: number) {
+    try {
+      const file = await this.databaseService.query('SELECT f_path FROM files WHERE f_id = ?', [fileId]) as any[];
+      if (file.length === 0) {
+        throw new Error(`File with ID ${fileId} not found`);
+      }
+
+      const filePath = path.join(__dirname, '..', file[0].f_path);
+      
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found on the server: ${filePath}`);
+      }
+
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet);
+
+      return data;
+    } catch (error) {
+      console.error('Error reading Excel file:', error);
       throw error;
     }
   }
