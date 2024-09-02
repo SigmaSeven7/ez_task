@@ -72,9 +72,41 @@ export class DataService {
     return this.databaseService.query('SELECT * FROM customers');
   }
 
+  // async getUserFiles(userId: number) {
+  //   const sql = 'SELECT * FROM files WHERE user_id = ?';
+  //   return this.databaseService.query(sql, [userId]);
+  // }
+
   async getUserFiles(userId: number) {
-    const sql = 'SELECT * FROM files WHERE user_id = ?';
-    return this.databaseService.query(sql, [userId]);
+    try {
+      const files = await this.databaseService.query('SELECT * FROM files WHERE user_id = ?', [userId]) as any[];
+      console.log(`Files from database for user ${userId}:`, files);
+
+      const validFiles = [];
+
+      for (const file of files) {
+        const filePath = path.join(__dirname, '..', file.f_path);
+        console.log('Checking file path:', filePath);
+
+        if (fs.existsSync(filePath)) {
+          console.log('File exists:', filePath);
+          validFiles.push(file);
+        } else {
+          console.log('File does not exist, deleting from database:', filePath);
+          await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [file.f_id]);
+        }
+      }
+
+      if (validFiles.length === 0) {
+        await this.databaseService.query('ALTER TABLE files AUTO_INCREMENT = 1');
+      }
+
+      console.log('Valid files for user:', validFiles);
+      return validFiles;
+    } catch (error) {
+      console.error(`Error in getUserFiles for user ${userId}:`, error);
+      throw error;
+    }
   }
 
   async addFile(filename: string, filePath: string, userId: number) {
