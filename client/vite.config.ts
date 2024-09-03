@@ -30,6 +30,11 @@ export default defineConfig({
     strictPort: true,
     port: 5173,
     proxy: {
+      '/socket.io': {
+        target: 'wss://server-nestjs:3000',
+        ws: true,
+        secure: false,
+      },
       '/api': {
         target: 'http://server-nestjs:3000',
         changeOrigin: true,

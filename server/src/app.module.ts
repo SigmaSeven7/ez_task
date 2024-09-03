@@ -10,7 +10,7 @@ import { memoryStorage } from 'multer'; // Import memoryStorage
 import { RedisService } from './services/redis.service';
 import { SemaphoreService } from './services/semaphore.service';
 import { RedisModule } from './redis.module';
-
+import { FileUploadGateway } from './FileUploadGateway';
 @Module({
   imports: [
     MulterModule.register({
@@ -19,6 +19,6 @@ import { RedisModule } from './redis.module';
     RedisModule, // Ensure RedisModule is imported here
   ],
   controllers: [AppController, FileController],
-  providers: [AppService, DataService, DatabaseService, FileService, RedisService, SemaphoreService],
+  providers: [AppService, DataService, DatabaseService, FileService, RedisService, SemaphoreService, FileUploadGateway],
 })
 export class AppModule {}

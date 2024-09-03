@@ -29,12 +29,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { loggerConfig } from './logger.config';
 import * as bodyParser from 'body-parser';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: loggerConfig,
   });
-  
   app.enableCors({
     origin: true, // Allow all origins
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
@@ -42,6 +42,7 @@ async function bootstrap() {
   });
   app.use(bodyParser.json({ limit: '50mb' }));
   app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+  app.useWebSocketAdapter(new IoAdapter(app));
   await app.listen(3000, '0.0.0.0'); // Listen on all network interfaces
 }
 bootstrap();

@@ -1,6 +1,8 @@
 import axios from 'axios';
+import { io, Socket } from 'socket.io-client';
 
 const API_BASE_URL = '/api';  // Always use /api as the base URL
+let socket: Socket | null = null;
 
 export async function getUsers() {
     try {
@@ -128,3 +130,43 @@ export async function deleteFile(fileId: number) {
       throw error;
     }
   }
+
+
+  export const connectWebSocket = (userId: string) => {
+    if (!socket) {
+      socket = io(`wss://server-nestjs:3000`, {
+        path: '/socket.io',
+        transports: ['websocket'],
+        secure: true,
+      });
+      
+      console.log('Connecting to WebSocket server...',socket);
+      socket.on('connect', () => {
+        console.log('Connected to WebSocket server');
+      });
+  
+      socket.on('connect_error', (error) => {
+        console.error('Connection error:', error);
+      });
+  
+      socket.on('disconnect', () => {
+        console.log('Disconnected from WebSocket server');
+      });
+  
+      socket.on(`fileQueued:${userId}`, ({ fileName }: { fileName: string }) => {
+        console.log(`File queued: ${fileName}`);
+      });
+  
+      socket.on(`fileProcessing:${userId}`, ({ fileName }: { fileName: string }) => {
+        console.log(`File processing: ${fileName}`);
+      });
+  
+      socket.on(`uploadProgress:${userId}`, ({ fileName, progress }: { fileName: string; progress: number }) => {
+        console.log(`Upload progress for ${fileName}: ${progress}%`);
+      });
+  
+      socket.on(`uploadComplete:${userId}`, ({ fileName }: { fileName: string }) => {
+        console.log(`Upload complete for ${fileName}`);
+      });
+    }
+  };

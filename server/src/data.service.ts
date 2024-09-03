@@ -78,9 +78,40 @@ export class DataService {
   // }
 
 
+  // async addFile(filename: string, fileContent: Buffer, userId: number) {
+  //   const sql = 'INSERT INTO files (f_name, f_content, user_id) VALUES (?, ?, ?)';
+  //   return this.databaseService.query(sql, [filename, fileContent, userId]);
+  // }
+
+  // async getFileContents(fileId: number) {
+  //   try {
+  //     const file = await this.databaseService.query('SELECT f_content FROM files WHERE f_id = ?', [fileId]) as any[];
+  //     if (file.length === 0) {
+  //       throw new Error(`File with ID ${fileId} not found`);
+  //     }
+
+  //     const workbook = XLSX.read(file[0].f_content);
+  //     const sheetName = workbook.SheetNames[0];
+  //     const worksheet = workbook.Sheets[sheetName];
+  //     const data = XLSX.utils.sheet_to_json(worksheet);
+
+  //     return data;
+  //   } catch (error) {
+  //     console.error('Error reading Excel file:', error);
+  //     throw error;
+  //   }
+  // }
+
   async addFile(filename: string, fileContent: Buffer, userId: number) {
     const sql = 'INSERT INTO files (f_name, f_content, user_id) VALUES (?, ?, ?)';
-    return this.databaseService.query(sql, [filename, fileContent, userId]);
+    try {
+      // Convert Buffer to base64 string for storage
+      const base64Content = fileContent.toString('base64');
+      return await this.databaseService.query(sql, [filename, base64Content, userId]);
+    } catch (error) {
+      console.error('Error adding file to database:', error);
+      throw error;
+    }
   }
 
   async getFileContents(fileId: number) {
@@ -90,7 +121,10 @@ export class DataService {
         throw new Error(`File with ID ${fileId} not found`);
       }
 
-      const workbook = XLSX.read(file[0].f_content);
+      // Convert base64 string back to Buffer
+      const fileBuffer = Buffer.from(file[0].f_content, 'base64');
+
+      const workbook = XLSX.read(fileBuffer);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet);
