@@ -1,4 +1,4 @@
-// src/entities/file.entity.ts
+
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Customer } from './customer.entity';
@@ -11,8 +11,8 @@ export class File {
   @Column()
   f_name: string;
 
-  @Column()
-  f_path: string;
+  @Column({ type: 'longblob' })
+  f_content: Buffer;
 
   @Column()
   uploaded_at: Date;

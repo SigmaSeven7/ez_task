@@ -46,26 +46,51 @@ export async function getUserFiles(userId: string) {
 }
 
 
-export async function uploadUserFiles(userId: string, files: File[]) {
-    const formData = new FormData();
-    files.forEach(file => {
-        formData.append('files', file);
-    });
+// export async function uploadUserFiles(userId: string, files: File[]) {
+//     const formData = new FormData();
+//     files.forEach(file => {
+//         formData.append('files', file);
+//     });
 
-    try {
-        const response = await axios.post(`${API_BASE_URL}/files/upload/${userId}`, formData, {
-            withCredentials: true,
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'multipart/form-data'
-            }
-        });
+//     try {
+//         const response = await axios.post(`${API_BASE_URL}/files/upload/${userId}`, formData, {
+//             withCredentials: true,
+//             headers: {
+//                 'Accept': 'application/json',
+//                 'Content-Type': 'multipart/form-data'
+//             }
+//         });
         
-        return response.data;
-    } catch (error) {
-        console.error('Error uploading user files:', error);
-        throw error;
-    }
+//         return response.data;
+//     } catch (error) {
+//         console.error('Error uploading user files:', error);
+//         throw error;
+//     }
+// }
+
+export async function uploadUserFiles(userId: string, files: File[]) {
+  const formData = new FormData();
+  files.forEach(file => {
+      formData.append('files', file, file.name);
+  });
+  console.log('formData:', formData);
+  try {
+      const response = await axios.post(`${API_BASE_URL}/files/upload/${userId}`, formData, {
+          withCredentials: true,
+          headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'multipart/form-data'
+          },
+          // Add this to ensure the entire file is sent
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity
+      });
+     
+      return response.data;
+  } catch (error) {
+      console.error('Error uploading user files:', error);
+      throw error;
+  }
 }
 
 

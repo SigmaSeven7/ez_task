@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { DataService } from '../data.service';
 import { Multer } from 'multer';
 import { RedisService } from './redis.service';
@@ -28,29 +28,71 @@ export class FileService {
     return this.dataService.getFile(fileId);
   }
 
-  async uploadFile(file: Express.Multer.File, userId: number) {
-    try {
-        this.logger.log(`Uploading file: ${file.filename} by user ${userId}`);
-        await this.dataService.addFile(file.filename, file.path, userId);
-        return { status: 'uploaded', file: file.filename };
-    } catch (error) {
-        this.logger.error(`Error uploading file: ${file.filename}`, error.stack);
-        return { status: 'error', file: file.filename, error: error.message };
-    } finally {
-        // Wait for the processing count to be decremented before moving on
-        await this.redisService.decrementProcessingCount();
-        await this.processNextInQueue();
+//   async uploadFile(file: Express.Multer.File, userId: number) {
+//     try {
+//         this.logger.log(`Uploading file: ${file.filename} by user ${userId}`);
+//         await this.dataService.addFile(file.filename, file.path, userId);
+//         return { status: 'uploaded', file: file.filename };
+//     } catch (error) {
+//         this.logger.error(`Error uploading file: ${file.filename}`, error.stack);
+//         return { status: 'error', file: file.filename, error: error.message };
+//     } finally {
+//         // Wait for the processing count to be decremented before moving on
+//         await this.redisService.decrementProcessingCount();
+//         await this.processNextInQueue();
+//     }
+// }
+
+
+
+//   async queueFile(file: Express.Multer.File, userId: number) {
+//     const queueItem = JSON.stringify({ file: { filename: file.filename, path: file.path }, userId });
+//     await this.redisService.addToQueue(queueItem);
+//     this.logger.log(`File queued: ${file.filename} by user ${userId}`);
+//     return { status: 'queued', file: file.filename };
+//   }
+
+// async uploadFile(file: Express.Multer.File, userId: number) {
+//   try {
+//     this.logger.log(`Uploading file: ${file.originalname} by user ${userId}`);
+//     await this.dataService.addFile(file.originalname, file.buffer, userId);
+//     return { status: 'uploaded', file: file.originalname };
+//   } catch (error) {
+//     this.logger.error(`Error uploading file: ${file.originalname}`, error.stack);
+//     return { status: 'error', file: file.originalname, error: error.message };
+//   } finally {
+//     await this.redisService.decrementProcessingCount();
+//     await this.processNextInQueue();
+//   }
+// }
+
+async uploadFile(file: Express.Multer.File, userId: number) {
+  try {
+    console.log(`Uploading file: ${file.originalname} by user ${userId}`);
+    console.log(`Uploading file: ${file.originalname} by user ${userId}, file buffer: ${file.buffer}`);
+    
+    if (!file.originalname || !file.buffer || !userId) {
+      throw new BadRequestException('Invalid file or user data');
     }
+
+    await this.dataService.addFile(file.originalname, file.buffer, userId);
+    return { status: 'uploaded', file: file.originalname };
+  } catch (error) {
+    console.error(`Error uploading file: ${file.originalname}`, error.stack);
+    throw error;
+  } finally {
+    // Decrement the processing count and process the next file in the queue
+    await this.redisService.decrementProcessingCount();
+    await this.processNextInQueue();
+  }
 }
 
-
-
-  async queueFile(file: Express.Multer.File, userId: number) {
-    const queueItem = JSON.stringify({ file: { filename: file.filename, path: file.path }, userId });
-    await this.redisService.addToQueue(queueItem);
-    this.logger.log(`File queued: ${file.filename} by user ${userId}`);
-    return { status: 'queued', file: file.filename };
-  }
+async queueFile(file: Express.Multer.File, userId: number) {
+  const queueItem = JSON.stringify({ file: { originalname: file.originalname, buffer: file.buffer }, userId });
+  await this.redisService.addToQueue(queueItem);
+  this.logger.log(`File queued: ${file.originalname} by user ${userId}`);
+  return { status: 'queued', file: file.originalname };
+}
 
   // private async processNextInQueue() {
   //   const processingCount = await this.redisService.getProcessingCount();

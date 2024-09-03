@@ -11,6 +11,7 @@ export class FileController {
   constructor(private readonly fileService: FileService) { }
   private readonly MAX_CONCURRENT_UPLOADS = 5;
  
+
   @Post('upload/:userId')
   @UseInterceptors(FilesInterceptor('files'))
   async uploadFiles(
@@ -32,8 +33,17 @@ export class FileController {
       const currentProcessingCount = await this.fileService.getProcessingCount();
       const currentQueueLength = await this.fileService.getQueueLength();
 
-      console.log(`Processing file: ${file.filename}, Current processing count: ${currentProcessingCount}, Current queue length: ${currentQueueLength}`);
+      // console.log(`Processing file: ${file}, Current processing count: ${currentProcessingCount}, Current queue length: ${currentQueueLength}`);
 
+      const { originalname, filename, mimetype, size, buffer } = file;
+      console.log(`Processing file: ${originalname} (filename: ${filename || 'N/A'}, mimetype: ${mimetype}, size: ${size} bytes)`);
+  
+      // Log the buffer size, but not the actual content
+      if (buffer) {
+        console.log(`Binary data size: ${buffer.length} bytes`);
+      } else {
+        console.log(`Binary data is not available`);
+      }
       if (currentProcessingCount < this.MAX_CONCURRENT_UPLOADS) {
         await this.fileService.incrementProcessingCount();
         results.push(await this.fileService.uploadFile(file, userId));
@@ -44,7 +54,7 @@ export class FileController {
 
     // Queue the remaining files
     for (const file of filesToQueue) {
-      console.log(`Queueing file: ${file.filename}`);
+      console.log(`Queueing file: ${file.originalname}`);
       results.push(await this.fileService.queueFile(file, userId));
     }
 
@@ -67,24 +77,19 @@ export class FileController {
   }
 
 
+
   @Get(':id/download')
   async downloadFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
     const file = await this.fileService.getFile(parseInt(id));
-    const filePath = path.join(__dirname, '..', '..', file.f_path);
     
-    if (!fs.existsSync(filePath)) {
-      throw new Error('File not found');
-    }
-
-    const fileStream = fs.createReadStream(filePath);
-
     res.set({
       'Content-Disposition': `attachment; filename="${file.f_name}"`,
       'Content-Type': 'application/octet-stream',
     });
 
-    return new StreamableFile(fileStream);
+    return new StreamableFile(file.f_content);
   }
+
 
   @Get('user/:userId')
   async getFilesByUser(@Param('userId') userId: number) {

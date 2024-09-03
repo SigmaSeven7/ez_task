@@ -47,7 +47,6 @@ services:
       - appnetwork
     volumes:
       - ./server:/app
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
     depends_on:
       - mariadb
       - redis
@@ -74,6 +73,7 @@ services:
       - appnetwork
     volumes:
       - ez-mariadb-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql 
 
 networks:
   appnetwork:
