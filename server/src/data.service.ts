@@ -13,9 +13,10 @@ export class DataService {
     return this.databaseService.query('SELECT * FROM users');
   }
 
-  
+
   async getFiles() {
     try {
+      // Retrieve all files from the database
       const files = await this.databaseService.query('SELECT * FROM files') as any[];
       console.log('Files from database:', files); // Log the files retrieved from the database
   
@@ -33,9 +34,17 @@ export class DataService {
           await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [file.f_id]);
         }
       }
-      if(validFiles.length === 0) {
+  
+      // Now check if there are any files left in the table
+      const remainingFiles = await this.databaseService.query('SELECT COUNT(*) as count FROM files');
+      const remainingCount = remainingFiles[0].count;
+      console.log('Remaining files in the database:', remainingFiles);
+      if (remainingCount === 0) {
+        // Reset the auto-increment to 1 if no files are left
+        console.log('No files left in the database, resetting AUTO_INCREMENT.');
         await this.databaseService.query('ALTER TABLE files AUTO_INCREMENT = 1');
       }
+  
       console.log('Valid files:', validFiles); // Log the valid files array
       return validFiles;
     } catch (error) {
@@ -52,60 +61,10 @@ export class DataService {
     return file[0];
   }
 
-  // async getFileContents(fileId: number) {
-  //   try {
-  //     const file = await this.databaseService.query('SELECT f_path FROM files WHERE f_id = ?', [fileId]) as any[];
-  //     if (file.length === 0) {
-  //       throw new Error(`File with ID ${fileId} not found`);
-  //     }
-
-  //     const filePath = path.join(__dirname, '..', file[0].f_path);
-      
-  //     if (!fs.existsSync(filePath)) {
-  //       throw new Error(`File not found on the server: ${filePath}`);
-  //     }
-
-  //     const workbook = XLSX.readFile(filePath);
-  //     const sheetName = workbook.SheetNames[0];
-  //     const worksheet = workbook.Sheets[sheetName];
-  //     const data = XLSX.utils.sheet_to_json(worksheet);
-
-  //     return data;
-  //   } catch (error) {
-  //     console.error('Error reading Excel file:', error);
-  //     throw error;
-  //   }
-  // }
-
-
-  // async addFile(filename: string, fileContent: Buffer, userId: number) {
-  //   const sql = 'INSERT INTO files (f_name, f_content, user_id) VALUES (?, ?, ?)';
-  //   return this.databaseService.query(sql, [filename, fileContent, userId]);
-  // }
-
-  // async getFileContents(fileId: number) {
-  //   try {
-  //     const file = await this.databaseService.query('SELECT f_content FROM files WHERE f_id = ?', [fileId]) as any[];
-  //     if (file.length === 0) {
-  //       throw new Error(`File with ID ${fileId} not found`);
-  //     }
-
-  //     const workbook = XLSX.read(file[0].f_content);
-  //     const sheetName = workbook.SheetNames[0];
-  //     const worksheet = workbook.Sheets[sheetName];
-  //     const data = XLSX.utils.sheet_to_json(worksheet);
-
-  //     return data;
-  //   } catch (error) {
-  //     console.error('Error reading Excel file:', error);
-  //     throw error;
-  //   }
-  // }
 
   async addFile(filename: string, fileContent: Buffer, userId: number) {
     const sql = 'INSERT INTO files (f_name, f_content, user_id) VALUES (?, ?, ?)';
     try {
-      // Convert Buffer to base64 string for storage
       const base64Content = fileContent.toString('base64');
       return await this.databaseService.query(sql, [filename, base64Content, userId]);
     } catch (error) {
@@ -116,96 +75,86 @@ export class DataService {
 
   async getFileContents(fileId: number) {
     try {
-      const file = await this.databaseService.query('SELECT f_content FROM files WHERE f_id = ?', [fileId]) as any[];
+      const file = await this.databaseService.query('SELECT f_content, f_name FROM files WHERE f_id = ?', [fileId]) as any[];
+      
       if (file.length === 0) {
         throw new Error(`File with ID ${fileId} not found`);
       }
-
-      // Convert base64 string back to Buffer
+      
+      console.log('File from database:', {
+        name: file[0].f_name,
+        contentLength: file[0].f_content.length
+      });
+      
+      // Decode the base64 content
       const fileBuffer = Buffer.from(file[0].f_content, 'base64');
+  
+      // Try to read the buffer as an Excel file
+      try {
+        const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+        console.log('Workbook sheets:', workbook.SheetNames);
+  
+        if (workbook.SheetNames.length === 0) {
+          throw new Error('No sheets found in the workbook');
+        }
+  
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Get the range of the sheet
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        console.log('Sheet range:', range);
 
-      const workbook = XLSX.read(fileBuffer);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const data = XLSX.utils.sheet_to_json(worksheet);
+        // Get cell values
+        let cellValues = [];
+        for (let R = range.s.r; R <= range.e.r; ++R) {
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+            const cell = worksheet[cellAddress];
+            if (cell && cell.v !== undefined) {
+              cellValues.push({
+                address: cellAddress,
+                value: cell.v
+              });
+            }
+          }
+        }
+        console.log('Cell values:', cellValues);
 
-      return data;
+        // Convert the worksheet to JSON
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+        
+        console.log('Parsed data:', data);
+  
+        // Return both the parsed data and the cell values
+        return data?.at(0) ;
+      } catch (xlsxError) {
+        console.error('Error parsing Excel file:', xlsxError);
+        
+        // If Excel parsing fails, return an error message
+        return {
+          error: 'Unable to parse as Excel',
+          message: xlsxError.message
+        };
+      }
     } catch (error) {
-      console.error('Error reading Excel file:', error);
+      console.error('Error reading file:', error);
       throw error;
     }
   }
+
 
   async deleteFile(fileId: number): Promise<void> {
     await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [fileId]);
   }
 
 
-  // async deleteFile(fileId: number): Promise<void> {
-  //   // Get the file path from the database
-  //   const file = await this.databaseService.query('SELECT f_path FROM files WHERE f_id = ?', [fileId]) as any[];
-  //   if (file.length === 0) {
-  //     throw new Error(`File with ID ${fileId} not found`);
-  //   }
-
-  //   const filePath = path.join(__dirname, '..', file[0].f_path);
-
-  //   // Delete the file record from the database
-  //   await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [fileId]);
-
-  //   // Delete the file from the file system
-  //   return new Promise((resolve, reject) => {
-  //     fs.unlink(filePath, (err) => {
-  //       if (err) {
-  //         reject(err);
-  //       } else {
-  //         resolve();
-  //       }
-  //     });
-  //   });
-  // }
-
+ 
   async getCustomers() {
     return this.databaseService.query('SELECT * FROM customers');
   }
 
-  // async getUserFiles(userId: number) {
-  //   const sql = 'SELECT * FROM files WHERE user_id = ?';
-  //   return this.databaseService.query(sql, [userId]);
-  // }
-
-  // async getUserFiles(userId: number) {
-  //   try {
-  //     const files = await this.databaseService.query('SELECT * FROM files WHERE user_id = ?', [userId]) as any[];
-  //     console.log(`Files from database for user ${userId}:`, files);
-
-  //     const validFiles = [];
-
-  //     for (const file of files) {
-  //       const filePath = path.join(__dirname, '..', file.f_path);
-  //       console.log('Checking file path:', filePath);
-
-  //       if (fs.existsSync(filePath)) {
-  //         console.log('File exists:', filePath);
-  //         validFiles.push(file);
-  //       } else {
-  //         console.log('File does not exist, deleting from database:', filePath);
-  //         await this.databaseService.query('DELETE FROM files WHERE f_id = ?', [file.f_id]);
-  //       }
-  //     }
-
-  //     if (validFiles.length === 0) {
-  //       await this.databaseService.query('ALTER TABLE files AUTO_INCREMENT = 1');
-  //     }
-
-  //     console.log('Valid files for user:', validFiles);
-  //     return validFiles;
-  //   } catch (error) {
-  //     console.error(`Error in getUserFiles for user ${userId}:`, error);
-  //     throw error;
-  //   }
-  // }
-
+  
 
   async getUserFiles(userId: number) {
     try {
@@ -214,7 +163,7 @@ export class DataService {
         [userId]
       ) as any[];
   
-      console.log(`Files from database for user ${userId}:`, files);
+
   
       if (files.length === 0) {
         console.log(`No files found for user ${userId}`);

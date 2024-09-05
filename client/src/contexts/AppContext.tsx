@@ -79,7 +79,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const fetchUsers = async () => {
       try {
         const usersData = await getUsers();
-        setUsers(usersData);
+        console.log('usersData:', usersData);
+        setUsers(usersData || []);
       } catch (error) {
         console.error('Failed to fetch users:', error);
       }

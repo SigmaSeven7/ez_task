@@ -1,20 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { getFileContents } from '../../api/api';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import * as XLSX from 'xlsx';
 
 interface FileContentsProps {
   fileId: number;
   fileName: string;
 }
 
-const FileContents: React.FC<FileContentsProps> = ({ fileId,fileName }) => {
+const FileContents: React.FC<FileContentsProps> = ({ fileId, fileName }) => {
   const [contents, setContents] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchContents = async () => {
       try {
-        const data = await getFileContents(fileId);
-        setContents(data);
+        const base64Data = await getFileContents(fileId);
+        console.log(base64Data);
+        const binaryString = atob(base64Data);
+        const binaryData = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          binaryData[i] = binaryString.charCodeAt(i);
+        }
+        const workbook = XLSX.read(binaryData, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const parsedData = XLSX.utils.sheet_to_json(sheet);
+        setContents(parsedData);
       } catch (error) {
         console.error('Error fetching file contents:', error);
       }
@@ -31,7 +42,7 @@ const FileContents: React.FC<FileContentsProps> = ({ fileId,fileName }) => {
 
   return (
     <TableContainer component={Paper}>
-    <div>{fileName}</div>
+      <div>{fileName}</div>
       <Table>
         <TableHead>
           <TableRow>
