@@ -1,15 +1,19 @@
 .user-files-container {
+    margin-top: 1rem;
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
     font-family: Arial, sans-serif;
   }
   
-  h1 {
-    color: #333;
-    text-align: center;
+
+  .upload-progress-tracker {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
   }
-  
+
   ul {
     list-style-type: none;
     padding: 0;
@@ -80,7 +84,6 @@
   .dropzone {
     border: 2px dashed #ccc;
     border-radius: 4px;
-    padding: 20px;
     text-align: center;
     margin-top: 20px;
     background-color: #f9f9f9;
@@ -139,3 +142,5 @@
       transform:  translateX(100%) scaleX(0.5);
     }
   }
+
+  

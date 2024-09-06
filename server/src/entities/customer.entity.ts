@@ -1,4 +1,4 @@
-// src/entities/customer.entity.ts
+
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { File } from './file.entity';
 

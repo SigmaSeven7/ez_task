@@ -1,7 +1,5 @@
 import axios from 'axios';
-
-
-const API_BASE_URL = '/api';  // Always use /api as the base URL
+const API_BASE_URL = '/api'; 
 import * as XLSX from 'xlsx';
 
 export async function getUsers() {
@@ -24,7 +22,6 @@ export async function getUsers() {
 export async function getFileContents(fileId: number) {
     try {
       const response = await axios.get(`${API_BASE_URL}/files/${fileId}/contents`);
-      console.log(response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching file contents:', error);
@@ -49,10 +46,9 @@ export async function getUserFiles(userId: string) {
 }
 
 
-export const getFileUpdates = async (userId: string, fileName: string): Promise<{ status: 'queued' | 'in-progress' | 'completed' }> => {
+export const getFileUpdates = async (userId: string, uploadId: string): Promise<{ status: 'queued' | 'in-progress' | 'completed' }> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/files/updates/${userId}/${fileName}`);
-    console.log(response.data);
+    const response = await axios.get(`${API_BASE_URL}/files/updates/${userId}/${uploadId}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching file updates:', error);
@@ -113,30 +109,11 @@ export async function deleteFile(fileId: number) {
     }
   }
   
-  // export async function downloadFile(fileId: number, fileName: string) {
-  //   try {
-  //     const response = await axios.get(`${API_BASE_URL}/files/${fileId}/download`, {
-  //       responseType: 'blob',
-  //       withCredentials: true,
-  //     });
-      
-  //     const url = window.URL.createObjectURL(new Blob([response.data]));
-  //     const link = document.createElement('a');
-  //     link.href = url;
-  //     link.setAttribute('download', fileName);
-  //     document.body.appendChild(link);
-  //     link.click();
-  //     link.remove();
-  //   } catch (error) {
-  //     console.error('Error downloading file:', error);
-  //     throw error;
-  //   }
-  // }
-
+  
   export async function downloadFile(fileId: number, fileName: string) {
     try {
       const response = await axios.get(`${API_BASE_URL}/files/${fileId}/download`, {
-        responseType: 'text', // Expecting base64 encoded string
+        responseType: 'text', 
         withCredentials: true,
       });
   
@@ -148,21 +125,21 @@ export async function deleteFile(fileId: number) {
         binaryData[i] = binaryString.charCodeAt(i);
       }
   
-      // Parse binary data to workbook
+
       const workbook = XLSX.read(binaryData, { type: 'array' });
   
-      // Create a Blob from the workbook
+     
       const workbookBlob = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
   
-      // Convert binary string to Blob
+     
       const buffer = new ArrayBuffer(workbookBlob.length);
       const view = new Uint8Array(buffer);
       for (let i = 0; i < workbookBlob.length; i++) {
         view[i] = workbookBlob.charCodeAt(i) & 0xFF;
       }
-      const blob = new Blob([buffer], { type: 'application/octet-stream' });
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   
-      // Create a download link and trigger the download
+      
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -175,6 +152,8 @@ export async function deleteFile(fileId: number) {
       throw error;
     }
   }
-  
+
+
+
 
 

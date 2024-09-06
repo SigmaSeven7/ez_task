@@ -15,15 +15,21 @@ const FileContents: React.FC<FileContentsProps> = ({ fileId, fileName }) => {
     const fetchContents = async () => {
       try {
         const base64Data = await getFileContents(fileId);
-        console.log(base64Data);
-        const binaryString = atob(base64Data);
+
+      
+        const binaryString = atob(base64Data[0]); 
+
+      
         const binaryData = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           binaryData[i] = binaryString.charCodeAt(i);
         }
+
+        
         const workbook = XLSX.read(binaryData, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
+        // Convert sheet to JSON
         const parsedData = XLSX.utils.sheet_to_json(sheet);
         setContents(parsedData);
       } catch (error) {

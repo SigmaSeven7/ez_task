@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
-import { DataService } from './data.service';
+import { AppService } from '../services/app.service';
+import { DataService } from '../services/data.service';
 
 @Controller()
 export class AppController {
@@ -19,10 +19,6 @@ export class AppController {
     return this.dataService.getUsers();
   }
 
-  @Get('files')
-  async getFiles() {
-    return this.dataService.getFiles();
-  }
 
   @Get('customers')
   async getCustomers() {

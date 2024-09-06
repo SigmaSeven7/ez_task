@@ -1,4 +1,3 @@
-// server/src/redis.service.ts
 import { Injectable } from '@nestjs/common';
 import { createClient } from 'redis';
 
@@ -11,16 +10,40 @@ export class RedisService {
     this.client.connect().then(() => {
       console.log('Connected to Redis');
       this.resetProcessingCount();
+      this.scheduleCleanOldStatusQueueItems();
     }).catch(err => {
       console.error('Redis connection error:', err);
     });
+  }
+
+  async cleanOldStatusQueueItems() {
+    try {
+      const statusQueue = await this.client.hGetAll('statusQueue');
+      const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+  
+      for (const [key, value] of Object.entries(statusQueue)) {
+        const statusData = JSON.parse(value as string);
+        const timestamp = new Date(statusData.timestamp).getTime();
+  
+        if (statusData.status === 'completed' && timestamp < tenMinutesAgo) {
+          await this.client.hDel('statusQueue', key);
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning old status queue items:', error);
+    }
+  }
+
+  scheduleCleanOldStatusQueueItems() {
+    setInterval(() => {
+      this.cleanOldStatusQueueItems();
+    }, 60 * 60 * 1000); 
   }
 
 
   private async resetProcessingCount(): Promise<void> {
     try {
       await this.client.set('processingCount', 0);
-      console.log('Processing count reset to 0');
     } catch (err) {
       console.error('Error resetting processing count:', err);
     }
@@ -39,67 +62,50 @@ export class RedisService {
     return this.client.lLen('uploadQueue');
   }
 
-  // async getProcessingCount() {
-  //   // const count = await this.client.get('processingCount');
-  //   // return count ? parseInt(count) : 0;
-  //   const count = (await this.getProcessingQueue()).length;
-  //   return count;
-  // }
-
-  // async getProcessingCount(): Promise<number> {
-  //   return this.client.lLen('processingQueue');
-  // }
-
-  // async incrementProcessingCount() {
-  //   return this.client.incr('processingCount');
-  // }
-
-  // async decrementProcessingCount() {
-  //   return this.client.decr('processingCount');
-  // }
-
-
-  async getFullQueue(): Promise<string[]> {
-    try {
-      const items = await this.client.lRange('uploadQueue', 0, -1);
-      return items;
-    } catch (err) {
-      console.error('Error fetching upload queue:', err);
-      throw err;
-    }
-  }
-
+  
   async incrementProcessingCount() {
     await this.client.incr('processingCount');
-    console.log('Incremented processing count');
   }
   
   async decrementProcessingCount() {
     await this.client.decr('processingCount');
-    console.log('Decremented processing count');
   }
 
-  async addToProcessingQueue(item: string) {
-    await this.client.rPush('processingQueue', item);
-    console.log(`Added item to processing queue`);
+  async addToStatusQueue(userId: string, uploadId: string, fileName: string, status: string) {
+    const statusData = this.createStatusData(fileName, status);
+    const userStatusKey = `statusQueue:${userId}`;
+    await this.client.hSet(userStatusKey, uploadId, JSON.stringify(statusData));
+  }
+  
+  async updateStatusQueue(userId: string, uploadId: string, fileName: string, status: string) {
+    const userStatusKey = `statusQueue:${userId}`;
+    const currentStatus = await this.client.hGet(userStatusKey, uploadId);
+    if (currentStatus) {
+      const updatedStatus = this.createStatusData(fileName, status);
+      await this.client.hSet(userStatusKey, uploadId, JSON.stringify(updatedStatus));
+    }
+  }
+  
+  async removeItemFromStatusQueue(userId: string, uploadId: string): Promise<void> {
+    const userStatusKey = `statusQueue:${userId}`;
+    await this.client.hDel(userStatusKey, uploadId);
   }
 
-  async removeFromProcessingQueue(item: string) {
-    const result = await this.client.lRem('processingQueue', 0, item);
-    console.log(`Removed item from processing queue:, Result: ${result}`);
+  private createStatusData(fileName: string, status: string) {
+    return { fileName, status, timestamp: new Date().toISOString() };
   }
 
-  async getProcessingQueue(): Promise<string[]> {
-    const items = await this.client.lRange('processingQueue', 0, -1);
-    console.log('Current processing queue:');
-    return items;
+  async getStatusQueue(userId: string, uploadId: string): Promise<any> {
+    const userStatusKey = `statusQueue:${userId}`;
+    const status = await this.client.hGet(userStatusKey, uploadId);   
+    if (status) {
+      return JSON.parse(status);
+    } else {
+      return null;
+    }
   }
-
   async getProcessingCount(): Promise<number> {
-    // const processingQueue = await this.getProcessingQueue();
-    // return processingQueue.length;
     const count = await this.client.get('processingCount');
     return count ? parseInt(count) : 0;
   }
-
 }
